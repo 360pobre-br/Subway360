@@ -1,0 +1,61 @@
+name: Build Subway360 XEX
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Subway360-Xbox360/**"
+      - ".github/workflows/subway360-xex.yml"
+
+jobs:
+  build-xex:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Install xsdk build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bison flex texinfo \
+            libgmp-dev libmpfr-dev libmpc-dev curl xz-utils patch \
+            python3 cmake ninja-build git
+
+      - name: Checkout xsdk
+        run: git clone --depth 1 https://github.com/xenosworks/xsdk.git "$GITHUB_WORKSPACE/xsdk"
+
+      - name: Build Xbox 360 cross compiler
+        working-directory: xsdk
+        run: |
+          PREFIX="$RUNNER_TEMP/xsdk-gcc"
+          WORK="$RUNNER_TEMP/xsdk-gcc-work"
+          JOBS=2 tools/toolchain/build.sh
+
+      - name: Build xsdk libraries and tools
+        working-directory: xsdk
+        run: make -j2 TOOLCHAIN="$RUNNER_TEMP/xsdk-gcc/bin/powerpc-xsdk-elf-"
+
+      - name: Configure Subway360
+        run: |
+          cmake -S Subway360-Xbox360 -B build-subway360 -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/xsdk/cmake/xsdk.cmake" \
+            -DXSDK_TOOLCHAIN="$RUNNER_TEMP/xsdk-gcc" \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Compile XEX
+        run: cmake --build build-subway360 --verbose
+
+      - name: Check output
+        run: |
+          test -s build-subway360/Subway360.xex
+          file build-subway360/Subway360.xex || true
+          sha256sum build-subway360/Subway360.xex
+
+      - name: Upload Subway360 XEX
+        uses: actions/upload-artifact@v4
+        with:
+          name: Subway360-XEX
+          path: build-subway360/Subway360.xex
+          if-no-files-found: error
