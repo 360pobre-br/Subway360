@@ -1,0 +1,8 @@
+{
+  "package": "Subway360 Xbox 360 preparation",
+  "source_archive": "SubwaySurfers-main.zip",
+  "source_engine": "Unity 6000.0.54f1",
+  "native_target": "Xbox 360 XEX via xenosworks/xsdk",
+  "current_stage": "native boot/display test only; not a playable Subway Surfers port",
+  "workflow": ".github/workflows/subway360-xex.yml"
+}
